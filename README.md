@@ -1,4 +1,4 @@
-# MNIST DATASET - NEURAL NETOWORK IN C
+# MNIST DATASET - NEURAL NETWORK IN C
 
 This is a simple MLP Neural Network made with C.
 
