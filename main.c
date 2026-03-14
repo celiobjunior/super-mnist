@@ -9,8 +9,9 @@ int main(void)
 {
         Network net = {0};
         Dataset dataset = {0};
+        f32 img[MNIST_IMAGE_SIDE * MNIST_IMAGE_SIDE];
+        f32 learning_rate = LEARNING_RATE;
         size_t pixels_per_image = MNIST_IMAGE_SIDE * MNIST_IMAGE_SIDE;
-        f32 img[pixels_per_image], learning_rate = LEARNING_RATE;
 
         network_init(&net, pixels_per_image);
 

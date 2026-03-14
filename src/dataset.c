@@ -52,18 +52,19 @@ static u32 read_be_u32(FILE *file)
  *                  stored in the file header.
  * @param pixels_per_image Output parameter that receives the number of pixels
  *                         per image (`rows * cols`).
-**/
+ */
 static void dataset_load_mnist_images(const char *filename,
-                               u8 **images,
-                               size_t *n_samples,
-                               size_t *pixels_per_image)
+                                      u8 **images,
+                                      size_t *n_samples,
+                                      size_t *pixels_per_image)
 {
-        printf("Reading MNIST images...\n");
-
         u32 magic_number, n_images_u32, n_rows, n_cols, pixels_per_image_u32;
         size_t total_bytes;
-        FILE *images_file = fopen(filename, "rb");
+        FILE *images_file;
 
+        printf("Reading MNIST images...\n");
+
+        images_file = fopen(filename, "rb");
         if (!images_file)
         {
                 printf("The file does not exist!\n");
@@ -155,15 +156,17 @@ static void dataset_load_mnist_images(const char *filename,
  *               with `free()`.
  * @param n_labels Output parameter that receives the total number of labels
  *                 stored in the file header.
-**/
-static void dataset_load_mnist_labels(const char *filename, u8 **labels, size_t *n_labels)
+ */
+static void dataset_load_mnist_labels(const char *filename,
+                                      u8 **labels,
+                                      size_t *n_labels)
 {
+        u32 magic_number, n_labels_u32;
+        FILE *labels_file;
+
         printf("Reading MNIST labels...\n");
 
-        u32 magic_number;
-        u32 n_labels_u32;
-        FILE *labels_file = fopen(filename, "rb");
-
+        labels_file = fopen(filename, "rb");
         if (!labels_file)
         {
                 printf("The file does not exist!\n");
@@ -213,16 +216,31 @@ static void dataset_load_mnist_labels(const char *filename, u8 **labels, size_t 
 
 void dataset_load_mnist(Dataset *dataset)
 {
-    if (!dataset) return;
-    
-    dataset_load_mnist_images(TRAIN_IMG_PATH,
-                              &dataset->images,
-                              &dataset->n_samples,
-                              &dataset->pixels_per_image);
-    
-    dataset_load_mnist_labels(TRAIN_LBL_PATH, 
-                              &dataset->labels, 
-                              &dataset->n_samples);
+        size_t n_images;
+        size_t n_labels;
+
+        if (!dataset) return;
+
+        if (dataset->images || dataset->labels)
+                dataset_free(dataset);
+
+        dataset_load_mnist_images(TRAIN_IMG_PATH,
+                                  &dataset->images,
+                                  &n_images,
+                                  &dataset->pixels_per_image);
+
+        dataset_load_mnist_labels(TRAIN_LBL_PATH,
+                                  &dataset->labels,
+                                  &n_labels);
+
+        if (n_images != n_labels)
+        {
+                printf("Image/label count mismatch.\n");
+                dataset_free(dataset);
+                exit(1);
+        }
+
+        dataset->n_samples = n_images;
 }
 
 void dataset_free(Dataset *dataset)
