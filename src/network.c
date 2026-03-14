@@ -143,11 +143,6 @@ void network_init(Network *net, size_t input_size)
 {
         if (!net) return;
 
-        *net = (Network) {
-                .hidden = {0},
-                .output = {0},
-        };
-
         layer_init(&net->hidden, input_size, HIDDEN_LAYER_SIZE);
         layer_init(&net->output, HIDDEN_LAYER_SIZE, OUTPUT_LAYER_SIZE);
 }

@@ -1,18 +1,17 @@
-# MNIST DATASET - NEURAL NETWORK IN C
+# Super Mnist
 
-This is a simple Neural Network made with C.
+This is a simple Neural Network made with C to classify handwritten digits of the MNIST dataset, but with good architecture.
 
 ## How to compile 
 
 ```bash
-clang main.c -o main -Wall -Wextra  
 clang -std=c11 -Wall -Wextra -pedantic main.c ./src/*.c -lm
 ```
 
 ## How to run
 
 ```bash
-./main
+./a.out
 ```
 
 # MNIST Documentation
