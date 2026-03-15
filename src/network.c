@@ -137,3 +137,30 @@ void network_free(Network *net)
         layer_free(&net->hidden);
         layer_free(&net->output);
 }
+
+b32 network_predict(Network *net, const f32 *input, u8 correct_label) 
+{
+        f32 hidden_output[HIDDEN_LAYER_SIZE], final_output[OUTPUT_LAYER_SIZE];
+
+        if (!net || !input) return 0;
+
+        if (!net->hidden.weights || !net->hidden.biases ||
+            !net->output.weights || !net->output.biases)
+                return 0;
+
+        feed_forward(&net->hidden, input, hidden_output);
+        feed_forward(&net->output, hidden_output, final_output);
+
+        u8 predicted_label = 0;
+        f32 max_output = final_output[0];
+        for (size_t i = 1; i < OUTPUT_LAYER_SIZE; i++)
+        {
+                if (final_output[i] > max_output)
+                {
+                        max_output = final_output[i];
+                        predicted_label = i;
+                }
+        }
+
+        return predicted_label == correct_label;
+}

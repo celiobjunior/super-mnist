@@ -74,4 +74,13 @@ void network_train(Network *net, const f32 *input, u8 label, f32 learning_rate);
  */
 void network_free(Network *net);
 
+/**
+ * @brief Makes a prediction for a given input sample.
+ *
+ * @param net Initialized network instance.
+ * @param input Normalized input sample with `input_size` elements.
+ * @return Predicted class label.
+ */
+b32 network_predict(Network *net, const f32 *input, u8 correct_label);
+
 #endif
