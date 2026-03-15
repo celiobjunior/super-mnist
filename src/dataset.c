@@ -275,26 +275,6 @@ void dataset_load_mnist(Dataset *dataset)
         dataset->n_samples = n_images;
 }
 
-/**
- * @brief Randomly shuffles a prefix of the loaded dataset in place.
- *
- * This function applies an in-place Fisher-Yates shuffle to the sample range
- * `[0, end_index)`. Images and labels remain aligned after shuffling, so each
- * label continues to describe the image stored at the same sample index.
- *
- * Range behavior:
- * - if `end_index > dataset->n_samples`, it is clamped to `dataset->n_samples`
- * - if `end_index < 2`, no shuffle is performed
- * - samples in the range `[end_index, dataset->n_samples)` are left unchanged
- *
- * Safe no-op behavior:
- * - if `dataset` is NULL
- * - if the dataset is not fully loaded
- * - if the dataset contains fewer than two total samples
- *
- * @param dataset Dataset object to shuffle.
- * @param end_index Exclusive upper bound of the sample prefix to shuffle.
- */
 void dataset_shuffle(Dataset *dataset, size_t end_index)
 {
         if (!dataset ||

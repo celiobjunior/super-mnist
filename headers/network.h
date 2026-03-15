@@ -4,6 +4,11 @@
 #include "types.h"
 #include <stddef.h>
 
+typedef struct Gradient {
+        f32 *bias_grad;
+        f32 *weight_grad;
+} Gradient;
+
 /**
  * @brief Fixed-size fully connected layer.
  *
@@ -54,14 +59,15 @@ typedef struct Network {
 void network_init(Network *net, size_t input_size);
 
 /**
- * @brief Performs one training step for a single labeled sample.
+ * @brief Performs one training step for a mini-batch of labeled samples.
  *
  * @param net Initialized network instance.
- * @param input Normalized input sample with `input_size` elements.
- * @param label Expected class label for the sample.
+ * @param input Normalized mini-batch input buffer.
+ * @param label Expected class labels for the mini-batch.
+ * @param batch_size Number of samples stored in `input` and `label`.
  * @param learning_rate Gradient descent learning rate.
  */
-void network_train(Network *net, const f32 *input, u8 label, f32 learning_rate);
+void network_train(Network *net, const f32 *input, const u8 *label, size_t batch_size, f32 learning_rate);
 
 /**
  * @brief Releases all heap memory owned by the network.
