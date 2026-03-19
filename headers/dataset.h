@@ -5,12 +5,12 @@
 #include <stddef.h>
 
 /**
- * @brief In-memory representation of the MNIST training dataset.
+ * @brief In-memory representation of an MNIST dataset split.
  *
  * Ownership and lifecycle:
  * - initialize with `Dataset dataset = {0};`
- * - load with `dataset_load_mnist(&dataset);`
- * - shuffle in place with `dataset_shuffle(&dataset, dataset.n_samples);`
+ * - load with `dataset_load_mnist(&dataset, image_path, label_path);`
+ * - optionally shuffle in place with `dataset_shuffle(&dataset, dataset.n_samples);`
  * - release with `dataset_free(&dataset);`
  *
  * Reload behavior:
@@ -34,11 +34,13 @@ typedef struct Dataset {
 } Dataset;
 
 /**
- * @brief Loads the MNIST training dataset configured by the project.
+ * @brief Loads an MNIST dataset split from the provided image and label files.
  *
- * This function reads both the configured image file and label file, validates
- * that they describe the same number of samples, and stores the resulting
- * buffers and metadata in `dataset`.
+ * This function reads the given MNIST image file and label file, validates that
+ * they describe the same number of samples, and stores the resulting buffers
+ * and metadata in `dataset`.
+ *
+ * The file paths must point to raw uncompressed IDX files.
  *
  * Guarantees on success:
  * - `dataset->images` and `dataset->labels` are heap-allocated and owned by
@@ -52,12 +54,14 @@ typedef struct Dataset {
  *
  * Expected usage:
  * - pass a zero-initialized dataset object before the first load
- * - call this function before training
+ * - call this function before training or evaluation
  * - later call `dataset_free(&dataset)` when the dataset is no longer needed
  *
  * @param dataset Dataset object to initialize or reload.
+ * @param img_path Path to the MNIST image file for the desired split.
+ * @param label_path Path to the MNIST label file for the desired split.
  */
-void dataset_load_mnist(Dataset *dataset);
+void dataset_load_mnist(Dataset *dataset, const char *img_path, const char *label_path);
 
 /**
  * @brief Randomly shuffles a prefix of loaded dataset samples in place.
@@ -66,8 +70,6 @@ void dataset_load_mnist(Dataset *dataset);
  * describe the image stored at the same sample index.
  *
  * The shuffle is applied to the half-open range `[0, end_index)`.
- * This allows the training split to be reshuffled while keeping the test split
- * fixed across epochs.
  *
  * Range handling:
  * - if `end_index > dataset->n_samples`, it is clamped to `dataset->n_samples`

@@ -1,5 +1,4 @@
 #include "../headers/dataset.h"
-#include "../headers/config.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -232,7 +231,7 @@ static void dataset_swap_image_samples(u8 *images,
 {
         size_t base_i, base_j;
         u8 swap;
-        
+
         if (i == j) return;
 
         base_i = i * pixels_per_image;
@@ -246,55 +245,6 @@ static void dataset_swap_image_samples(u8 *images,
         }
 }
 
-void dataset_load_mnist(Dataset *dataset)
-{
-        size_t n_images;
-        size_t n_labels;
-
-        if (!dataset) return;
-
-        if (dataset->images || dataset->labels)
-                dataset_free(dataset);
-
-        dataset_load_mnist_images(TRAIN_IMG_PATH,
-                                  &dataset->images,
-                                  &n_images,
-                                  &dataset->pixels_per_image);
-
-        dataset_load_mnist_labels(TRAIN_LBL_PATH,
-                                  &dataset->labels,
-                                  &n_labels);
-
-        if (n_images != n_labels)
-        {
-                printf("Image/label count mismatch.\n");
-                dataset_free(dataset);
-                exit(1);
-        }
-
-        dataset->n_samples = n_images;
-}
-
-/**
- * @brief Randomly shuffles a prefix of the loaded dataset in place.
- *
- * This function applies an in-place Fisher-Yates shuffle to the sample range
- * `[0, end_index)`. Images and labels remain aligned after shuffling, so each
- * label continues to describe the image stored at the same sample index.
- *
- * Range behavior:
- * - if `end_index > dataset->n_samples`, it is clamped to `dataset->n_samples`
- * - if `end_index < 2`, no shuffle is performed
- * - samples in the range `[end_index, dataset->n_samples)` are left unchanged
- *
- * Safe no-op behavior:
- * - if `dataset` is NULL
- * - if the dataset is not fully loaded
- * - if the dataset contains fewer than two total samples
- *
- * @param dataset Dataset object to shuffle.
- * @param end_index Exclusive upper bound of the sample prefix to shuffle.
- */
 void dataset_shuffle(Dataset *dataset, size_t end_index)
 {
         if (!dataset ||
@@ -303,12 +253,12 @@ void dataset_shuffle(Dataset *dataset, size_t end_index)
             dataset->pixels_per_image == 0 ||
             dataset->n_samples < 2)
                 return;
-        
+
         if (end_index > dataset->n_samples)
                 end_index = dataset->n_samples;
-        
+
         if (end_index < 2) return;
-        
+
         for (size_t i = end_index - 1; i > 0; i--)
         {
                 size_t j = (size_t) rand() % (i + 1);
@@ -329,4 +279,33 @@ void dataset_free(Dataset *dataset)
         free(dataset->labels);
 
         *dataset = (Dataset){0};
+}
+
+void dataset_load_mnist(Dataset *dataset, const char *img_path, const char *label_path)
+{
+        size_t n_images;
+        size_t n_labels;
+
+        if (!dataset || !img_path || !label_path) return;
+
+        if (dataset->images || dataset->labels)
+                dataset_free(dataset);
+
+        dataset_load_mnist_images(img_path,
+                                  &dataset->images,
+                                  &n_images,
+                                  &dataset->pixels_per_image);
+
+        dataset_load_mnist_labels(label_path,
+                                  &dataset->labels,
+                                  &n_labels);
+
+        if (n_images != n_labels)
+        {
+                printf("Image/label count mismatch.\n");
+                dataset_free(dataset);
+                exit(1);
+        }
+
+        dataset->n_samples = n_images;
 }

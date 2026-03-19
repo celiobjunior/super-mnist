@@ -6,28 +6,31 @@ The name is inspired by [`mini-mnist`](https://github.com/konrad-gajdus/miniMNIS
 
 ## Project structure
 
-- `main.c`  
-  - Application entry point and training loop orchestration.
-- `headers/config.h`  
-  - Project-wide constants such as dataset paths, layer sizes, epochs, and learning rate.
-- `headers/dataset.h` and `src/dataset.c`  
-  - MNIST dataset loading, partial in-place dataset shuffling, and memory lifecycle management.
-- `headers/network.h` and `src/network.c`  
-  - Neural network data structures, initialization, training, and cleanup.
-- `headers/types.h`  
+- `main.c`
+  - Application entry point, training loop orchestration, and evaluation on the official MNIST test set.
+- `headers/config.h`
+  - Project-wide constants such as dataset paths, layer sizes, epochs, learning rate, and MNIST file locations.
+- `headers/dataset.h` and `src/dataset.c`
+  - MNIST IDX loading, dataset memory lifecycle management, and training-set shuffling.
+- `headers/network.h` and `src/network.c`
+  - Neural network data structures, parameter initialization, mini-batch training, prediction, and cleanup.
+- `headers/types.h`
   - Fixed-width aliases and project numeric types.
 
 ## Build
 
+Example build on macOS/Linux:
+
 ```sh
-clang -std=c11 -Wall -Wextra -pedantic main.c ./src/*.c -lm
+clang -std=c11 -Wall -Wextra -pedantic main.c ./src/*.c -lm -o app
 ```
 
 ## Run
 
 ```sh
-./a.out
+./app
 ```
+
 ## MNIST Documentation
 
 The dataset used in this project is the [MNIST Database of handwritten digits](https://github.com/sunsided/mnist).
