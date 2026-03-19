@@ -5,11 +5,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-typedef struct NetworkGradient {
-        f32 *bias_grad;
-        f32 *weight_grad;
-} NetworkGradient;
+#include <string.h>
 
 static f32 sigmoid(f32 z)
 {
@@ -58,18 +54,18 @@ static void backprop(Network *net,
         }
 
         for (size_t j = 0; j < OUTPUT_LAYER_SIZE; j++)
-                grad_output->bias_grad[j] = error_output[j];
+                grad_output->bias_grad[j] += error_output[j];
 
         for (size_t j = 0; j < HIDDEN_LAYER_SIZE; j++)
-                grad_hidden->bias_grad[j] = error_hidden[j];
+                grad_hidden->bias_grad[j] += error_hidden[j];
 
         for (size_t j = 0; j < HIDDEN_LAYER_SIZE; j++)
                 for (size_t k = 0; k < OUTPUT_LAYER_SIZE; k++)
-                        grad_output->weight_grad[j * OUTPUT_LAYER_SIZE + k] = error_output[k] * hidden_output[j];
+                        grad_output->weight_grad[j * OUTPUT_LAYER_SIZE + k] += error_output[k] * hidden_output[j];
 
         for (size_t j = 0; j < net->hidden.input_count; j++)
                 for (size_t k = 0; k < HIDDEN_LAYER_SIZE; k++)
-                        grad_hidden->weight_grad[j * HIDDEN_LAYER_SIZE + k] = error_hidden[k] * input[j];
+                        grad_hidden->weight_grad[j * HIDDEN_LAYER_SIZE + k] += error_hidden[k] * input[j];
 }
 
 static void layer_free(Layer *layer)
@@ -137,10 +133,14 @@ static void gradient_init(NetworkGradient *grad, size_t bias_count, size_t weigh
         }
 }
 
+static void gradient_zero(NetworkGradient *grad, size_t bias_count, size_t weight_count)
+{
+        memset(grad->bias_grad, 0, bias_count * sizeof(f32));
+        memset(grad->weight_grad, 0, weight_count * sizeof(f32));
+}
+
 void network_train(Network *net, const f32 *input, const u8 *label, size_t batch_size, f32 learning_rate)
 {
-        NetworkGradient grad_output, grad_hidden;
-        NetworkGradient sample_grad_output, sample_grad_hidden;
         f32 batch_scale;
 
         if (!net || !input || !label || batch_size == 0) return;
@@ -149,33 +149,15 @@ void network_train(Network *net, const f32 *input, const u8 *label, size_t batch
             !net->output.weights || !net->output.biases)
                 return;
 
-        gradient_init(&grad_output, OUTPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE * OUTPUT_LAYER_SIZE);
-        gradient_init(&grad_hidden, HIDDEN_LAYER_SIZE, net->hidden.input_count * HIDDEN_LAYER_SIZE);
-        gradient_init(&sample_grad_output, OUTPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE * OUTPUT_LAYER_SIZE);
-        gradient_init(&sample_grad_hidden, HIDDEN_LAYER_SIZE, net->hidden.input_count * HIDDEN_LAYER_SIZE);
+        gradient_zero(&net->grad_output, OUTPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE * OUTPUT_LAYER_SIZE);
+        gradient_zero(&net->grad_hidden, HIDDEN_LAYER_SIZE, net->hidden.input_count * HIDDEN_LAYER_SIZE);
 
         for (size_t i = 0; i < batch_size; i++)
         {
                 /* `input` stores the whole mini-batch as one flat buffer, so this points to sample `i`. */
                 const f32 *sample_input = input + i * net->hidden.input_count;
 
-                backprop(net, sample_input, &sample_grad_output, &sample_grad_hidden, label[i]);
-
-                for (size_t j = 0; j < OUTPUT_LAYER_SIZE; j++)
-                        grad_output.bias_grad[j] += sample_grad_output.bias_grad[j];
-
-                for (size_t j = 0; j < HIDDEN_LAYER_SIZE; j++)
-                        grad_hidden.bias_grad[j] += sample_grad_hidden.bias_grad[j];
-
-                for (size_t j = 0; j < HIDDEN_LAYER_SIZE; j++)
-                        for (size_t k = 0; k < OUTPUT_LAYER_SIZE; k++)
-                                grad_output.weight_grad[j * OUTPUT_LAYER_SIZE + k] +=
-                                        sample_grad_output.weight_grad[j * OUTPUT_LAYER_SIZE + k];
-
-                for (size_t j = 0; j < net->hidden.input_count; j++)
-                        for (size_t k = 0; k < HIDDEN_LAYER_SIZE; k++)
-                                grad_hidden.weight_grad[j * HIDDEN_LAYER_SIZE + k] +=
-                                        sample_grad_hidden.weight_grad[j * HIDDEN_LAYER_SIZE + k];
+                backprop(net, sample_input, &net->grad_output, &net->grad_hidden, label[i]);
         }
 
         batch_scale = learning_rate / (f32) batch_size;
@@ -183,23 +165,18 @@ void network_train(Network *net, const f32 *input, const u8 *label, size_t batch
         for (size_t i = 0; i < HIDDEN_LAYER_SIZE; i++)
                 for (size_t j = 0; j < OUTPUT_LAYER_SIZE; j++)
                         net->output.weights[i * OUTPUT_LAYER_SIZE + j] -=
-                                batch_scale * grad_output.weight_grad[i * OUTPUT_LAYER_SIZE + j];
+                                batch_scale * net->grad_output.weight_grad[i * OUTPUT_LAYER_SIZE + j];
 
         for (size_t i = 0; i < net->hidden.input_count; i++)
                 for (size_t j = 0; j < HIDDEN_LAYER_SIZE; j++)
                         net->hidden.weights[i * HIDDEN_LAYER_SIZE + j] -=
-                                batch_scale * grad_hidden.weight_grad[i * HIDDEN_LAYER_SIZE + j];
+                                batch_scale * net->grad_hidden.weight_grad[i * HIDDEN_LAYER_SIZE + j];
 
         for (size_t j = 0; j < OUTPUT_LAYER_SIZE; j++)
-                net->output.biases[j] -= batch_scale * grad_output.bias_grad[j];
+                net->output.biases[j] -= batch_scale * net->grad_output.bias_grad[j];
 
         for (size_t j = 0; j < HIDDEN_LAYER_SIZE; j++)
-                net->hidden.biases[j] -= batch_scale * grad_hidden.bias_grad[j];
-
-        gradient_free(&grad_output);
-        gradient_free(&grad_hidden);
-        gradient_free(&sample_grad_output);
-        gradient_free(&sample_grad_hidden);
+                net->hidden.biases[j] -= batch_scale * net->grad_hidden.bias_grad[j];
 }
 
 void network_init(Network *net, size_t input_size)
@@ -212,6 +189,9 @@ void network_init(Network *net, size_t input_size)
 
         layer_init(&net->hidden, input_size, HIDDEN_LAYER_SIZE);
         layer_init(&net->output, HIDDEN_LAYER_SIZE, OUTPUT_LAYER_SIZE);
+
+        gradient_init(&net->grad_output, OUTPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE * OUTPUT_LAYER_SIZE);
+        gradient_init(&net->grad_hidden, HIDDEN_LAYER_SIZE, input_size * HIDDEN_LAYER_SIZE);
 }
 
 void network_free(Network *net)
@@ -220,6 +200,8 @@ void network_free(Network *net)
 
         layer_free(&net->hidden);
         layer_free(&net->output);
+        gradient_free(&net->grad_output);
+        gradient_free(&net->grad_hidden);
 }
 
 b32 network_predict(Network *net, const f32 *input, u8 correct_label) 

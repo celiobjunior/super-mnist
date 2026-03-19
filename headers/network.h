@@ -17,12 +17,29 @@ typedef struct Layer {
 } Layer;
 
 /**
+ * @brief Pre-allocated gradient workspace for a single layer.
+ *
+ * Stores the accumulated bias and weight gradients used during
+ * backpropagation. Buffers are allocated once at network initialization
+ * and zeroed at the start of each mini-batch.
+ */
+typedef struct NetworkGradient {
+        f32 *bias_grad;
+        f32 *weight_grad;
+} NetworkGradient;
+
+/**
  * @brief Fixed neural network used by this project.
  *
  * This project uses a fixed architecture:
  * - input size is provided to `network_init()`
  * - hidden layer size is `HIDDEN_LAYER_SIZE`
  * - output layer size is `OUTPUT_LAYER_SIZE`
+ *
+ * The `grad_output` and `grad_hidden` fields are internal gradient buffers
+ * pre-allocated by `network_init()` and released by `network_free()`.
+ * They are zeroed and reused on every mini-batch, avoiding repeated
+ * heap allocations during training.
  *
  * Lifecycle contract:
  * 1. Zero-initialize the object before first use, for example:
@@ -33,16 +50,18 @@ typedef struct Layer {
  *
  * Safe reinitialization:
  * - calling `network_init()` on an already initialized network is supported
- * - any previously owned layer buffers are released before new ones are
- *   allocated
+ * - any previously owned layer and gradient buffers are released before new
+ *   ones are allocated
  * - after `network_free()`, the network may be initialized again
  */
 typedef struct Network {
         Layer hidden, output;
+        NetworkGradient grad_output, grad_hidden;
 } Network;
 
 /**
- * @brief Allocates and initializes the fixed network layers.
+ * @brief Allocates and initializes the fixed network layers and gradient
+ *        buffers.
  *
  * If `net` already owns buffers, they are released before the new
  * initialization is performed.
@@ -56,8 +75,8 @@ void network_init(Network *net, size_t input_size);
 /**
  * @brief Performs one training step for a mini-batch of labeled samples.
  *
- * This function temporarily allocates a gradient workspace to accumulate
- * batch gradients and per-sample gradients during the training step.
+ * Uses the pre-allocated gradient buffers in `net` to accumulate batch
+ * gradients during the training step.
  *
  * @param net Initialized network instance.
  * @param input Normalized mini-batch input buffer.
