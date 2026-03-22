@@ -48,7 +48,13 @@ Epoch 30: 9613 / 10000 (96.13%) - Time: 4.11 seconds
 ## Compilation
 
 ```bash
-clang -std=c11 -Wall -Wextra -pedantic -O2 main.c ./src/*.c -lm -o app
+make build
+```
+
+To force Clang explicitly:
+
+```bash
+make build CC=clang
 ```
 
 ## Usage
