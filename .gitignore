@@ -54,6 +54,7 @@ Icon
 *.i*86
 *.x86_64
 *.hex
+app
 
 # Debug files
 *.dSYM/
