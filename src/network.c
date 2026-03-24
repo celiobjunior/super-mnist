@@ -12,6 +12,29 @@ static f32 sigmoid(f32 z)
         return 1.0f / (1.0f + expf(-z));
 }
 
+/* Softmax is the mathematical tool that allows transforming rows of matrices into probabilities
+ * forming a perfect pair with Cross-Entropy to simplify the derivative during backpropagation
+ * enabling learning to improve more quickly in the early epochs. 
+ * We subtract the 'max_eval' before computing the exponential to prevent floating-point limits from causing overflow and producing Inf/NaN results.
+ */
+static void softmax(f32 *output, size_t count)
+{
+        f32 max_val = output[0];
+        for (size_t i = 1; i < count; i++) {
+                if (output[i] > max_val) max_val = output[i];
+        }
+
+        f32 sum = 0.0f;
+        for (size_t i = 0; i < count; i++) {
+                output[i] = expf(output[i] - max_val);
+                sum += output[i];
+        }
+
+        for (size_t i = 0; i < count; i++) {
+                output[i] /= sum;
+        }
+}
+
 static void feed_forward(const Layer *layer, const f32 *input, f32 *output)
 {
         for (size_t i = 0; i < layer->output_count; i++)
@@ -20,11 +43,14 @@ static void feed_forward(const Layer *layer, const f32 *input, f32 *output)
         for (size_t i = 0; i < layer->input_count; i++)
                 for (size_t j = 0; j < layer->output_count; j++)
                         output[j] += input[i] * layer->weights[i * layer->output_count + j];
-
-        for (size_t i = 0; i < layer->output_count; i++)
-                output[i] = sigmoid(output[i]);
 }
 
+/* Previously, backpropagation used MSE (Mean Squared Error) with the Sigmoid activation,
+ * which caused the vanishing gradient problem when the network made highly confident mistakes.
+ * Now, we use Cross-Entropy with Softmax activation, causing the derivative of Cross-Entropy to perfectly cancel out the derivative of Softmax.
+ * As a result, the loss gradient at the final output simplifies to:
+ * Error = Prediction - Target (final_output[i] - label).
+ */
 static void backprop(Network *net,
                      const f32 *input,
                      NetworkGradient *grad_output,
@@ -36,13 +62,19 @@ static void backprop(Network *net,
         f32 error_output[OUTPUT_LAYER_SIZE] = {0};
         f32 error_hidden[HIDDEN_LAYER_SIZE] = {0};
 
+/* The feedforward becomes much cleaner now
+ * since it no longer forces the Sigmoid activation and goes back 
+ * to being just a linear transformation (Z = Wx + b) 
+ */
         feed_forward(&net->hidden, input, hidden_output);
+        for (size_t i = 0; i < HIDDEN_LAYER_SIZE; i++)
+                hidden_output[i] = sigmoid(hidden_output[i]);
         feed_forward(&net->output, hidden_output, final_output);
+        softmax(final_output, OUTPUT_LAYER_SIZE);
 
         for (size_t i = 0; i < OUTPUT_LAYER_SIZE; i++)
         {
                 error_output[i] = final_output[i] - ((size_t) label == i);
-                error_output[i] *= final_output[i] * (1.0f - final_output[i]);
         }
 
         for (size_t i = 0; i < HIDDEN_LAYER_SIZE; i++)
@@ -100,7 +132,12 @@ static void layer_init(Layer *layer, size_t input_count, size_t output_count)
         if (!layer) return;
 
         weight_count = input_count * output_count;
-        scale = sqrtf(2.0f / (f32) input_count);
+
+/* Now we use Xavier scaling (Xavier initialization): sqrt(2 / (input_count + output_count)).
+ * Xavier initialization has been mathematically shown to be the best way to keep gradient variance
+ * stable when dealing with exponential-based functions, such as Sigmoid
+ */
+        scale = sqrtf(2.0f / (f32) (input_count + output_count));
 
         layer->input_count = input_count;
         layer->output_count = output_count;
@@ -209,13 +246,16 @@ b32 network_predict(Network *net, const f32 *input, u8 correct_label)
         f32 hidden_output[HIDDEN_LAYER_SIZE], final_output[OUTPUT_LAYER_SIZE];
 
         if (!net || !input) return 0;
-
         if (!net->hidden.weights || !net->hidden.biases ||
             !net->output.weights || !net->output.biases)
                 return 0;
 
+/* Once again, the same simplification as in the feedforward */
         feed_forward(&net->hidden, input, hidden_output);
+        for (size_t i = 0; i < HIDDEN_LAYER_SIZE; i++)
+                hidden_output[i] = sigmoid(hidden_output[i]);
         feed_forward(&net->output, hidden_output, final_output);
+        softmax(final_output, OUTPUT_LAYER_SIZE);
 
         u8 predicted_label = 0;
         f32 max_output = final_output[0];
